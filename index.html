@@ -27,6 +27,7 @@ li small{color:var(--mu)}li button{background:none;border:0;color:var(--mu);font
 <main>
 <h1>💸 Big Loss<small>บันทึกอบายมุข — ค่าบุหรี่ &amp; เสียพนัน</small></h1>
 
+<div id="status" style="text-align:center;color:var(--mu);font-size:13px">กำลังเชื่อมต่อ…</div>
 <div class="card">
   <div style="text-align:center;color:var(--mu)">เสียไปทั้งหมด</div>
   <div class="big" id="all">฿0</div>
@@ -58,21 +59,29 @@ li small{color:var(--mu)}li button{background:none;border:0;color:var(--mu);font
 </main>
 <script>
 const KEY='bigloss-v1';
-let items=[];try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
-let type='smoke';
+let items=[],col=null,type='smoke';
 const $=id=>document.getElementById(id);
 const baht=n=>'฿'+n.toLocaleString('th-TH',{maximumFractionDigits:2});
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
+const local=()=>{try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}};
+const saveLocal=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
+items=local().map((x,i)=>({...x,id:x.id||'l'+x.d+'_'+i}));
+const setStatus=t=>$('status').textContent=t;
 
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   type=b.dataset.t;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
 });
-$('add').onclick=()=>{
+$('add').onclick=async()=>{
   const a=parseFloat($('amt').value);if(!(a>0))return $('amt').focus();
-  items.unshift({t:type,a,n:$('note').value.trim(),d:Date.now()});
-  $('amt').value=$('note').value='';save();render();
+  const it={t:type,a,n:$('note').value.trim(),d:Date.now()};
+  $('amt').value=$('note').value='';
+  if(col){try{await col.add(it)}catch(e){alert('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')}}
+  else{items.unshift({...it,id:'l'+it.d});saveLocal();render()}
 };
-function del(i){if(confirm('ลบรายการนี้?')){items.splice(i,1);save();render()}}
+async function del(id){
+  if(!confirm('ลบรายการนี้?'))return;
+  if(col){try{await col.doc(id).delete()}catch(e){alert('ลบไม่สำเร็จ')}}
+  else{items=items.filter(x=>x.id!==id);saveLocal();render()}
+}
 
 function render(){
   const now=new Date(),sum=f=>items.filter(f).reduce((s,x)=>s+x.a,0);
@@ -83,13 +92,27 @@ function render(){
   $('today').textContent=baht(sum(x=>same(x,2)));
   $('sSmoke').textContent=baht(sum(x=>x.t==='smoke'));
   $('sBet').textContent=baht(sum(x=>x.t==='bet'));
-  $('list').innerHTML=items.slice(0,50).map((x,i)=>{
+  $('list').innerHTML=items.slice(0,50).map(x=>{
     const d=new Date(x.d).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'});
-    const n=x.n.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-    return `<li><div><span class="${x.t}">${x.t==='smoke'?'🚬':'🎲'} ${baht(x.a)}</span> ${n}<br><small>${d}</small></div><button onclick="del(${i})">✕</button></li>`;
+    const n=String(x.n||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+    return `<li><div><span class="${x.t==='bet'?'bet':'smoke'}">${x.t==='bet'?'🎲':'🚬'} ${baht(x.a)}</span> ${n}<br><small>${d}</small></div><button data-id="${x.id}">✕</button></li>`;
   }).join('')||'<li><small>ยังไม่มีรายการ</small></li>';
 }
+$('list').onclick=e=>{const id=e.target.dataset&&e.target.dataset.id;if(id)del(id)};
 render();
+
+(async()=>{
+  const db=window.claude&&await window.claude.use('db').catch(()=>null);
+  if(!db){setStatus('⚠️ เก็บในเครื่องนี้เท่านั้น');return}
+  col=db.collection('items');
+  // ย้ายข้อมูลเก่าในเครื่องขึ้นฐานข้อมูลครั้งเดียว
+  const old=local();
+  if(old.length){try{for(const x of old)await col.add({t:x.t,a:x.a,n:x.n||'',d:x.d});localStorage.removeItem(KEY)}catch(e){}}
+  col.orderBy('d','desc').onSnapshot(snap=>{
+    items=snap.docs.map(s=>({...s.data(),id:s.id}));render();
+    setStatus('☁️ บันทึกออนไลน์แล้ว ข้อมูลไม่หาย');
+  },()=>setStatus('⚠️ เชื่อมฐานข้อมูลไม่ได้'));
+})();
 </script>
 </body>
 </html>
