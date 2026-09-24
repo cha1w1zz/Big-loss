@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Big Loss</title>
+<style>
+:root{--bg:#111418;--card:#1c2128;--tx:#e8eaed;--mu:#9aa3ad;--smoke:#f0a24a;--bet:#e5534b;--ok:#3fb950}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,"Noto Sans Thai",sans-serif}
+main{max-width:520px;margin:auto;padding:16px}
+h1{margin:4px 0;font-size:26px}h1 small{display:block;font-size:14px;color:var(--mu);font-weight:400}
+.card{background:var(--card);border-radius:14px;padding:14px;margin:12px 0}
+.tot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.tot b{display:block;font-size:20px}.tot span{font-size:12px;color:var(--mu)}
+.big{font-size:34px;color:var(--bet);text-align:center;margin:6px 0 0}
+.tabs{display:flex;gap:8px}.tabs button{flex:1;padding:12px;border-radius:10px;border:2px solid #333;background:none;color:var(--tx);font-size:16px}
+.tabs button.on[data-t=smoke]{border-color:var(--smoke)}.tabs button.on[data-t=bet]{border-color:var(--bet)}
+input{width:100%;padding:12px;margin-top:8px;border-radius:10px;border:1px solid #333;background:#0d1014;color:var(--tx);font-size:18px}
+#add{width:100%;margin-top:10px;padding:14px;border:0;border-radius:10px;background:var(--ok);color:#000;font-size:18px;font-weight:700}
+ul{list-style:none;padding:0;margin:0}li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #2a3038}
+li small{color:var(--mu)}li button{background:none;border:0;color:var(--mu);font-size:18px}
+.smoke{color:var(--smoke)}.bet{color:var(--bet)}
+</style>
+</head>
+<body>
+<main>
+<h1>💸 Big Loss<small>บันทึกอบายมุข — ค่าบุหรี่ &amp; เสียพนัน</small></h1>
+
+<div class="card">
+  <div style="text-align:center;color:var(--mu)">เสียไปทั้งหมด</div>
+  <div class="big" id="all">฿0</div>
+  <div class="tot" style="margin-top:12px">
+    <div><b id="today">฿0</b><span>วันนี้</span></div>
+    <div><b id="month">฿0</b><span>เดือนนี้</span></div>
+    <div><b id="year">฿0</b><span>ปีนี้</span></div>
+  </div>
+  <div class="tot" style="margin-top:10px;grid-template-columns:1fr 1fr">
+    <div><b class="smoke" id="sSmoke">฿0</b><span>🚬 บุหรี่ (รวม)</span></div>
+    <div><b class="bet" id="sBet">฿0</b><span>🎲 พนัน (รวม)</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="tabs">
+    <button data-t="smoke" class="on">🚬 บุหรี่</button>
+    <button data-t="bet">🎲 เสียพนัน</button>
+  </div>
+  <input id="amt" type="number" inputmode="decimal" placeholder="จำนวนเงิน (บาท)">
+  <input id="note" placeholder="โน้ต (ไม่ใส่ก็ได้)">
+  <button id="add">บันทึก</button>
+</div>
+
+<div class="card">
+  <b>รายการล่าสุด</b>
+  <ul id="list"></ul>
+</div>
+</main>
+<script>
+const KEY='bigloss-v1';
+let items=[];try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
+let type='smoke';
+const $=id=>document.getElementById(id);
+const baht=n=>'฿'+n.toLocaleString('th-TH',{maximumFractionDigits:2});
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
+
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  type=b.dataset.t;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+});
+$('add').onclick=()=>{
+  const a=parseFloat($('amt').value);if(!(a>0))return $('amt').focus();
+  items.unshift({t:type,a,n:$('note').value.trim(),d:Date.now()});
+  $('amt').value=$('note').value='';save();render();
+};
+function del(i){if(confirm('ลบรายการนี้?')){items.splice(i,1);save();render()}}
+
+function render(){
+  const now=new Date(),sum=f=>items.filter(f).reduce((s,x)=>s+x.a,0);
+  const same=(x,k)=>{const d=new Date(x.d);return d.getFullYear()===now.getFullYear()&&(k<1||d.getMonth()===now.getMonth())&&(k<2||d.getDate()===now.getDate())};
+  $('all').textContent=baht(sum(()=>1));
+  $('year').textContent=baht(sum(x=>same(x,0)));
+  $('month').textContent=baht(sum(x=>same(x,1)));
+  $('today').textContent=baht(sum(x=>same(x,2)));
+  $('sSmoke').textContent=baht(sum(x=>x.t==='smoke'));
+  $('sBet').textContent=baht(sum(x=>x.t==='bet'));
+  $('list').innerHTML=items.slice(0,50).map((x,i)=>{
+    const d=new Date(x.d).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'});
+    const n=x.n.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    return `<li><div><span class="${x.t}">${x.t==='smoke'?'🚬':'🎲'} ${baht(x.a)}</span> ${n}<br><small>${d}</small></div><button onclick="del(${i})">✕</button></li>`;
+  }).join('')||'<li><small>ยังไม่มีรายการ</small></li>';
+}
+render();
+</script>
+</body>
+</html>
