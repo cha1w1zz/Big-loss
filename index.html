@@ -102,7 +102,7 @@ $('list').onclick=e=>{const id=e.target.dataset&&e.target.dataset.id;if(id)del(i
 render();
 
 // ===== เชื่อม Google Sheets =====
-const API=''; // ← ใส่ลิงก์ Web app จาก Apps Script ตรงนี้
+const API='https://script.google.com/macros/s/AKfycbw66778SnrUEVS6pqxbUzGoTklcEyn40Sra7e5pdmzG7PGhpKXIUGtN4-2uh8xAVcq9ZQ/exec'; // ← ใส่ลิงก์ Web app จาก Apps Script ตรงนี้
 async function pull(){
   try{const r=await fetch(API);const d=await r.json();items=d.sort((x,y)=>y.d-x.d);render();setStatus('☁️ บันทึกออนไลน์ (Google Sheets) ใช้ร่วมกันทุกคน')}
   catch(e){setStatus('⚠️ เชื่อมต่อไม่ได้ ลองรีเฟรช')}
