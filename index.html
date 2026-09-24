@@ -101,20 +101,22 @@ function render(){
 $('list').onclick=e=>{const id=e.target.dataset&&e.target.dataset.id;if(id)del(id)};
 render();
 
-(async()=>{
-  // รอให้ claude.ai เตรียมระบบฐานข้อมูลก่อน (อาจมาช้ากว่าสคริปต์)
-  for(let i=0;i<100&&!(window.claude&&window.claude.use);i++)await new Promise(r=>setTimeout(r,100));
-  let db=null;try{db=window.claude&&await window.claude.use('db')}catch(e){}
-  if(!db){setStatus('⚠️ เก็บในเครื่องนี้เท่านั้น');return}
-  col=db.collection('items');
-  // ย้ายข้อมูลเก่าในเครื่องขึ้นฐานข้อมูลครั้งเดียว
-  const old=local();
-  if(old.length){try{for(const x of old)await col.add({t:x.t,a:x.a,n:x.n||'',d:x.d});localStorage.removeItem(KEY)}catch(e){}}
-  col.orderBy('d','desc').onSnapshot(snap=>{
-    items=snap.docs.map(s=>({...s.data(),id:s.id}));render();
-    setStatus('☁️ บันทึกออนไลน์แล้ว ข้อมูลไม่หาย');
-  },()=>setStatus('⚠️ เชื่อมฐานข้อมูลไม่ได้'));
-})();
+// ===== เชื่อม Google Sheets =====
+const API=''; // ← ใส่ลิงก์ Web app จาก Apps Script ตรงนี้
+async function pull(){
+  try{const r=await fetch(API);const d=await r.json();items=d.sort((x,y)=>y.d-x.d);render();setStatus('☁️ บันทึกออนไลน์ (Google Sheets) ใช้ร่วมกันทุกคน')}
+  catch(e){setStatus('⚠️ เชื่อมต่อไม่ได้ ลองรีเฟรช')}
+}
+async function send(body){
+  await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+  await pull();
+}
+if(API){
+  col={add:it=>send({op:'add',...it}),doc:id=>({delete:()=>send({op:'del',id})})};
+  // ย้ายข้อมูลเก่าในเครื่องขึ้นชีตครั้งเดียว
+  (async()=>{const old=local();if(old.length){try{for(const x of old)await send({op:'add',t:x.t,a:x.a,n:x.n||''});localStorage.removeItem(KEY)}catch(e){}}
+    pull();setInterval(pull,5000)})();
+}else setStatus('⚠️ ยังไม่ได้เชื่อม Google Sheets — เก็บในเครื่องนี้เท่านั้น');
 </script>
 </body>
 </html>
