@@ -1,4 +1,4 @@
-// Big Loss — ตัวเชื่อม Google Sheets (วางไฟล์นี้ใน Extensions > Apps Script)
+// Big Loss — ตัวเชื่อม Google Sheets (วางไฟล์นี้ที่ script.google.com หรือ Extensions > Apps Script)
 function doGet() {
   const rows = sheet_().getDataRange().getValues().slice(1);
   return out_(rows.map(r => ({ id: String(r[0]), t: r[1], a: Number(r[2]), n: String(r[3]), d: Number(r[4]) })));
@@ -25,7 +25,14 @@ function doPost(e) {
 }
 
 function sheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // ใช้ได้ทั้งแบบเปิดจากในชีต หรือสร้างที่ script.google.com (จะสร้างชีต "Big Loss" ให้เอง)
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    const props = PropertiesService.getScriptProperties();
+    const id = props.getProperty('SHEET_ID');
+    if (id) ss = SpreadsheetApp.openById(id);
+    else { ss = SpreadsheetApp.create('Big Loss'); props.setProperty('SHEET_ID', ss.getId()); }
+  }
   let s = ss.getSheetByName('data');
   if (!s) { s = ss.insertSheet('data'); s.appendRow(['id', 'type', 'amount', 'note', 'time']); }
   return s;
