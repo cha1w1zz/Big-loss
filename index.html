@@ -102,7 +102,9 @@ $('list').onclick=e=>{const id=e.target.dataset&&e.target.dataset.id;if(id)del(i
 render();
 
 (async()=>{
-  const db=window.claude&&await window.claude.use('db').catch(()=>null);
+  // รอให้ claude.ai เตรียมระบบฐานข้อมูลก่อน (อาจมาช้ากว่าสคริปต์)
+  for(let i=0;i<100&&!(window.claude&&window.claude.use);i++)await new Promise(r=>setTimeout(r,100));
+  let db=null;try{db=window.claude&&await window.claude.use('db')}catch(e){}
   if(!db){setStatus('⚠️ เก็บในเครื่องนี้เท่านั้น');return}
   col=db.collection('items');
   // ย้ายข้อมูลเก่าในเครื่องขึ้นฐานข้อมูลครั้งเดียว
