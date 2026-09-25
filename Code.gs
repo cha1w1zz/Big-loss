@@ -1,7 +1,7 @@
 // Big Loss — ตัวเชื่อม Google Sheets (วางไฟล์นี้ที่ script.google.com หรือ Extensions > Apps Script)
 function doGet() {
   const rows = sheet_().getDataRange().getValues().slice(1);
-  return out_(rows.map(r => ({ id: String(r[0]), t: r[1], a: Number(r[2]), n: String(r[3]), d: Number(r[4]) })));
+  return out_(rows.map(r => ({ id: String(r[0]), t: r[1], a: Number(r[2]), n: String(r[3]), d: Number(r[4]), p: String(r[5] || 'ไม่ระบุ') })));
 }
 
 function doPost(e) {
@@ -15,7 +15,10 @@ function doPost(e) {
       if (!(a > 0 && a < 1e7)) return out_({ ok: false });
       let n = String(b.n || '').slice(0, 200);
       if (/^[=+\-@]/.test(n)) n = "'" + n; // กันสูตรแปลกๆ ในชีต
-      s.appendRow([Utilities.getUuid(), b.t === 'bet' ? 'bet' : 'smoke', a, n, Date.now()]);
+      let p = String(b.p || 'ไม่ระบุ').slice(0, 40);
+      if (/^[=+\-@]/.test(p)) p = "'" + p;
+      const t = ['smoke', 'bet', 'win'].indexOf(b.t) >= 0 ? b.t : 'smoke';
+      s.appendRow([Utilities.getUuid(), t, a, n, Date.now(), p]);
     } else if (b.op === 'del') {
       const ids = s.getRange(1, 1, s.getLastRow(), 1).getValues();
       for (let i = ids.length - 1; i > 0; i--) if (String(ids[i][0]) === String(b.id)) { s.deleteRow(i + 1); break; }
@@ -34,7 +37,7 @@ function sheet_() {
     else { ss = SpreadsheetApp.create('Big Loss'); props.setProperty('SHEET_ID', ss.getId()); }
   }
   let s = ss.getSheetByName('data');
-  if (!s) { s = ss.insertSheet('data'); s.appendRow(['id', 'type', 'amount', 'note', 'time']); }
+  if (!s) { s = ss.insertSheet('data'); s.appendRow(['id', 'type', 'amount', 'note', 'time', 'profile']); }
   return s;
 }
 
